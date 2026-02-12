@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DMP3 AR Experience</title>
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+
+    /* Updated BUTTON styling */
+    .btn {
+      position: fixed;
+      bottom: 20px;
+      width: 70px;
+      height: 70px;
+      background: #1e5df8;       /* YOUR BLUE */
+      border-radius: 50%;
+      z-index: 1000;
+      user-select: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* SVG icons inside buttons */
+    .btn svg {
+      width: 34px;
+      height: 34px;
+      fill: white; /* white play/pause icons */
+    }
+
+    #togglePlayPauseBtn { left: 20px; }
+
+    #closeBtn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 55px;
+      height: 55px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-size: 26px;
+      text-align: center;
+      line-height: 55px;
+      border-radius: 50%;
+      z-index: 1000;
+      cursor: pointer;
+    }
+
+    #audioOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      text-align: center;
+      z-index: 2000;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<a-scene
+  mindar-image="imageTargetSrc: targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: true"
+>
+
+  <a-assets>
+    <video id="videoAsset"
+           src="video.mp4"
+           preload="auto"
+           loop
+           crossorigin="anonymous"
+           playsinline>
+    </video>
+  </a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity mindar-image-target="targetIndex: 0" id="target">
+    <a-video id="arVideo"
+             src="#videoAsset"
+             width="1.6"
+             height="0.9"
+             position="0 0 0"
+             visible="false">
+    </a-video>
+  </a-entity>
+
+</a-scene>
+
+<!-- PLAY / PAUSE BUTTON (SVG icons) -->
+<div id="togglePlayPauseBtn" class="btn">
+  <!-- Play icon -->
+  <svg id="iconPlay" viewBox="0 0 100 100">
+    <polygon points="30,20 80,50 30,80"></polygon>
+  </svg>
+
+  <!-- Pause icon -->
+  <svg id="iconPause" viewBox="0 0 100 100" style="display:none;">
+    <rect x="25" y="20" width="18" height="60"></rect>
+    <rect x="57" y="20" width="18" height="60"></rect>
+  </svg>
+</div>
+
+<!-- CLOSE BUTTON -->
+<div id="closeBtn">✕</div>
+
+<!-- AUDIO UNLOCK -->
+<div id="audioOverlay">Tap to Enable Sound</div>
+
+<script>
+window.onload = () => {
+
+  const video = document.querySelector('#videoAsset');
+  const videoEntity = document.querySelector('#arVideo');
+  const target = document.querySelector('#target');
+
+  const toggleBtn = document.getElementById('togglePlayPauseBtn');
+  const iconPlay = document.getElementById('iconPlay');
+  const iconPause = document.getElementById('iconPause');
+  const closeBtn = document.getElementById('closeBtn');
+  const audioOverlay = document.getElementById('audioOverlay');
+
+  const scaleMultiplier = 0.65;
+  videoEntity.object3D.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
+
+  /* Swap between play and pause icons */
+  function updateToggleBtn() {
+    const isPaused = video.paused;
+    iconPlay.style.display = isPaused ? "block" : "none";
+    iconPause.style.display = isPaused ? "none" : "block";
+  }
+
+  /* Unlock audio on user gesture */
+  audioOverlay.addEventListener('click', () => {
+    video.muted = false;
+    video.play().then(() => {
+      video.pause();
+      audioOverlay.style.display = 'none';
+    });
+  });
+
+  /* Play/pause button */
+  toggleBtn.addEventListener('click', () => {
+    if (video.paused) video.play();
+    else video.pause();
+    updateToggleBtn();
+  });
+
+  /* Close button */
+  closeBtn.addEventListener('click', () => {
+    video.pause();
+    video.currentTime = 0;
+    videoEntity.object3D.visible = false;
+    updateToggleBtn();
+  });
+
+  /* AR target found */
+  target.addEventListener('targetFound', () => {
+    videoEntity.object3D.visible = true;
+    video.play();
+    updateToggleBtn();
+  });
+
+  /* AR target lost */
+  target.addEventListener('targetLost', () => {
+    video.pause();
+    updateToggleBtn();
+  });
+
+  updateToggleBtn();
+};
+</script>
+
+</body>
+</html>
