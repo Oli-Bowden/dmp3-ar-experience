@@ -2,10 +2,10 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>DMP3 Multi-Poster AR</title>
+  <title>DMP3 AR Experience</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-  <!-- A-Frame + MindAR -->
+  <!-- A-Frame + MindAR (ensure proper script tags) -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
@@ -37,7 +37,7 @@
     .btn:active { transform: scale(0.96); }
     .btn svg { width: 34px; height: 34px; fill: white; display: block; }
 
-    /* Tell Me More pill (Poster 2) */
+    /* Tell me more pill (Poster 2) — sentence case */
     #tellMeMoreBtn_p2 {
       position: fixed;
       left: 50%;
@@ -120,16 +120,14 @@
              preload="auto"
              loop
              crossorigin="anonymous"
-             playsinline></video>
+             playsinline>
+      </video>
 
       <!-- Poster 2 model -->
-      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb" crossorigin="anonymous"></a-asset-item>
+      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb"></a-asset-item>
 
       <!-- Poster 2 voiceover -->
-      <audio id="voiceAsset"
-             src="./assets/quantum-voiceover.mp3"
-             preload="auto"
-             crossorigin="anonymous"></audio>
+      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3" preload="auto"></audio>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -141,7 +139,8 @@
                width="1.6"
                height="0.9"
                position="0 0 0"
-               visible="false"></a-video>
+               visible="false">
+      </a-video>
     </a-entity>
 
     <!-- Poster 2 target (index 1) -->
@@ -172,9 +171,9 @@
     </svg>
   </div>
 
-  <!-- Poster 2: Tell Me More (blue pill) -->
+  <!-- Poster 2: Tell me more (blue pill, center bottom) -->
   <div id="tellMeMoreBtn_p2" class="hidden" role="button" aria-label="Tell me more">
-    Tell Me More
+    Tell me more
   </div>
 
   <!-- Poster 2: Play/Pause voiceover (blue circle) -->
@@ -305,7 +304,7 @@
         activePoster = 'p2';
         modelEntity.setAttribute('visible', true);
 
-        // No auto audio. Show "Tell Me More" pill. Hide P2 play/pause until user opts in.
+        // No auto audio. Show "Tell me more" pill. Hide P2 play/pause until user opts in.
         show(tellBtnP2);
         hide(btnP2);
 
@@ -328,15 +327,14 @@
         }
       });
 
-      // Tell Me More → start audio, swap to play/pause
+      // Tell me more → start audio, swap to play/pause
       tellBtnP2.addEventListener('click', () => {
-        // Start voiceover (this click is a valid user gesture)
         voice.play().then(() => {
           hide(tellBtnP2);
           show(btnP2);
           updateBtnP2();
         }).catch(() => {
-          // If blocked for any reason, keep Tell Me More visible
+          // If blocked for any reason, keep Tell me more visible
         });
       });
 
