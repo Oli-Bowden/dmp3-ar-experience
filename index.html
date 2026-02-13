@@ -9,23 +9,17 @@
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <!-- Gesture controls (pinch to scale, two-finger rotate) -->
-  <script src="https://cdn.jsdelivr.net/npm/aframe-gesture-component@4.0.5/dist/aframe-gesture-component.min.js"></script>
-
   <style>
     body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
 
-    /* 🔑 Critical for multi-touch on the model (prevents browser pinch-zoom) */
-    canvas.a-canvas, .a-canvas { touch-action: none !important; }
-
-    /* Blue circular button with white SVG icon (shared by P1/P2) */
+    /* Blue circular button with white SVG icon (shared by both posters) */
     .btn {
       position: fixed;
       bottom: 20px;
       left: 20px;
       width: 70px;
       height: 70px;
-      background: #1e5df8;      /* your blue */
+      background: #1e5df8;
       border-radius: 50%;
       z-index: 1000;
       user-select: none;
@@ -39,9 +33,9 @@
       pointer-events: auto;
     }
     .btn:active { transform: scale(0.96); }
-    .btn svg { width: 34px; height: 34px; fill: white; display: block; }
+    .btn svg { width: 34px; height: 34px; fill: white; }
 
-    /* Pill CTA buttons (center-bottom), used by P1 & P2 */
+    /* Pill CTA buttons (center-bottom) */
     .cta-pill {
       position: fixed;
       left: 50%;
@@ -57,14 +51,13 @@
       cursor: pointer;
       user-select: none;
       box-shadow: 0 8px 24px rgba(30, 93, 248, 0.35);
-      touch-action: manipulation;
       white-space: nowrap;
       pointer-events: auto;
     }
 
     .hidden { display: none !important; }
 
-    /* Close button (keep your black transparent style) */
+    /* Close button */
     #closeBtn {
       position: fixed;
       top: 20px;
@@ -79,12 +72,10 @@
       border-radius: 50%;
       z-index: 1000;
       cursor: pointer;
-      user-select: none;
-      touch-action: manipulation;
       pointer-events: auto;
     }
 
-    /* Audio unlock overlay */
+    /* Audio unlock */
     #audioOverlay {
       position: fixed;
       inset: 0;
@@ -94,19 +85,10 @@
       align-items: center;
       justify-content: center;
       font-size: 22px;
-      text-align: center;
       z-index: 2000;
       cursor: pointer;
-      padding: 24px;
       pointer-events: auto;
-    }
-
-    @media (max-width: 420px) {
-      .btn { width: 62px; height: 62px; }
-      .btn svg { width: 28px; height: 28px; }
-      #closeBtn { width: 48px; height: 48px; font-size: 22px; line-height: 48px; }
-      #audioOverlay { font-size: 18px; }
-      .cta-pill { padding: 12px 18px; font-size: 15px; }
+      padding: 24px;
     }
   </style>
 </head>
@@ -115,304 +97,237 @@
 
   <!-- =================== AR Scene =================== -->
   <a-scene
-    mindar-image="imageTargetSrc: ./assets/targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;"
+    mindar-image="imageTargetSrc: ./assets/targets.mind;"
     vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: true"
-    gesture-detector
-  >
+    device-orientation-permission-ui="enabled: true">
+
     <a-assets>
-      <!-- Poster 1 video (with ID) -->
-      <video id="videoAsset"
-             src="./assets/video.mp4"
-             preload="auto"
-             loop
-             crossorigin="anonymous"
-             playsinline></video>
-
-      <!-- Poster 2 model (with ID) -->
+      <video id="videoAsset" src="./assets/video.mp4" preload="auto" loop crossorigin="anonymous" playsinline></video>
       <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb"></a-asset-item>
-
-      <!-- Poster 2 voiceover (with ID) -->
-      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3" preload="auto" crossorigin="anonymous"></audio>
+      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3"></audio>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Poster 1 target (index 0) -->
+    <!-- Poster 1 -->
     <a-entity mindar-image-target="targetIndex: 0" id="targetP1">
-      <a-video id="arVideo"
-               src="#videoAsset"
-               width="1.6"
-               height="0.9"
-               position="0 0 0"
-               visible="false">
-      </a-video>
+      <a-video id="arVideo" src="#videoAsset" width="1.6" height="0.9" visible="false"></a-video>
     </a-entity>
 
-    <!-- Poster 2 target (index 1) -->
+    <!-- Poster 2 -->
     <a-entity mindar-image-target="targetIndex: 1" id="targetP2">
       <a-entity id="modelEntity"
         gltf-model="#modelAsset"
         scale="0.7 0.7 0.7"
         rotation="0 0 0"
-        position="0 0 0"
-        visible="false"
-        gesture-controls="minScale: 0.2; maxScale: 3; rotateEnabled: true; scaleEnabled: true; dragEnabled: false;">
+        visible="false">
       </a-entity>
     </a-entity>
+
   </a-scene>
 
-  <!-- =================== Overlay UI =================== -->
+  <!-- =================== OVERLAY UI =================== -->
 
-  <!-- Poster 1: CTA pill to start video -->
-  <div id="playVideoCTA_p1" class="cta-pill hidden" role="button" aria-label="Play video">
-    Play video
-  </div>
+  <!-- Poster 1 CTA -->
+  <div id="playVideoCTA_p1" class="cta-pill hidden">Play video</div>
 
-  <!-- Poster 1: Play/Pause video (blue circle) -->
-  <div id="togglePlayPauseBtn_p1" class="btn hidden" role="button" aria-label="Play video" aria-pressed="false">
-    <!-- PLAY icon -->
+  <!-- Poster 1 Play/Pause -->
+  <div id="togglePlayPauseBtn_p1" class="btn hidden">
     <svg id="iconPlay_p1" viewBox="0 0 100 100">
       <polygon points="30,20 80,50 30,80"></polygon>
     </svg>
-    <!-- PAUSE icon -->
-    <svg id="iconPause_p1" viewBox="0 0 100 100" style="display:none;">
+    <svg id="iconPause_p1" style="display:none;" viewBox="0 0 100 100">
       <rect x="25" y="20" width="18" height="60"></rect>
       <rect x="57" y="20" width="18" height="60"></rect>
     </svg>
   </div>
 
-  <!-- Poster 2: Tell me more (blue pill, center bottom) -->
-  <div id="tellMeMoreBtn_p2" class="cta-pill hidden" role="button" aria-label="Tell me more">
-    Tell me more
-  </div>
+  <!-- Poster 2 CTA -->
+  <div id="tellMeMoreBtn_p2" class="cta-pill hidden">Tell me more</div>
 
-  <!-- Poster 2: Play/Pause voiceover (blue circle) -->
-  <div id="togglePlayPauseBtn_p2" class="btn hidden" role="button" aria-label="Play audio" aria-pressed="false">
-    <!-- PLAY icon -->
+  <!-- Poster 2 Play/Pause -->
+  <div id="togglePlayPauseBtn_p2" class="btn hidden">
     <svg id="iconPlay_p2" viewBox="0 0 100 100">
       <polygon points="30,20 80,50 30,80"></polygon>
     </svg>
-    <!-- PAUSE icon -->
-    <svg id="iconPause_p2" viewBox="0 0 100 100" style="display:none;">
+    <svg id="iconPause_p2" style="display:none;" viewBox="0 0 100 100">
       <rect x="25" y="20" width="18" height="60"></rect>
       <rect x="57" y="20" width="18" height="60"></rect>
     </svg>
   </div>
 
-  <!-- Shared close button -->
-  <div id="closeBtn" class="hidden" aria-label="Close">✕</div>
+  <!-- Close -->
+  <div id="closeBtn" class="hidden">✕</div>
 
-  <!-- Audio unlock overlay -->
+  <!-- Audio unlock -->
   <div id="audioOverlay">Tap to Enable Sound</div>
 
   <script>
     window.onload = () => {
-      // ===== Elements
-      const video = document.querySelector('#videoAsset');
-      const videoEntity = document.querySelector('#arVideo');
 
+      // ELEMENTS
+      const video = document.querySelector('#videoAsset');
+      const arVideo = document.querySelector('#arVideo');
       const voice = document.querySelector('#voiceAsset');
-      const modelEntity = document.querySelector('#modelEntity');
+      const model = document.querySelector('#modelEntity');
 
       const targetP1 = document.querySelector('#targetP1');
       const targetP2 = document.querySelector('#targetP2');
 
-      // Poster 1 controls
-      const playCtaP1 = document.getElementById('playVideoCTA_p1');
-      const btnP1 = document.getElementById('togglePlayPauseBtn_p1');
+      const playCTA = document.getElementById('playVideoCTA_p1');
+      const playBtnP1 = document.getElementById('togglePlayPauseBtn_p1');
       const iconPlayP1 = document.getElementById('iconPlay_p1');
       const iconPauseP1 = document.getElementById('iconPause_p1');
 
-      // Poster 2 controls
-      const tellBtnP2 = document.getElementById('tellMeMoreBtn_p2');
-      const btnP2 = document.getElementById('togglePlayPauseBtn_p2');
+      const tellCTA = document.getElementById('tellMeMoreBtn_p2');
+      const playBtnP2 = document.getElementById('togglePlayPauseBtn_p2');
       const iconPlayP2 = document.getElementById('iconPlay_p2');
       const iconPauseP2 = document.getElementById('iconPause_p2');
 
       const closeBtn = document.getElementById('closeBtn');
       const audioOverlay = document.getElementById('audioOverlay');
 
-      // Which poster is active: 'p1' | 'p2' | null
-      let activePoster = null;
+      let active = null;
 
-      // Scale factor for video plane (from your original)
-      const scaleMultiplier = 0.65;
-      videoEntity.object3D.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
-
-      // ===== UI helpers
+      // Helpers
       const show = el => el.classList.remove('hidden');
       const hide = el => el.classList.add('hidden');
 
-      function updateBtnP1() {
+      function updateP1() {
         const paused = video.paused;
         iconPlayP1.style.display = paused ? 'block' : 'none';
         iconPauseP1.style.display = paused ? 'none' : 'block';
-        btnP1.setAttribute('aria-label', paused ? 'Play video' : 'Pause video');
-        btnP1.setAttribute('aria-pressed', String(!paused));
       }
 
-      function updateBtnP2() {
+      function updateP2() {
         const paused = voice.paused;
         iconPlayP2.style.display = paused ? 'block' : 'none';
         iconPauseP2.style.display = paused ? 'none' : 'block';
-        btnP2.setAttribute('aria-label', paused ? 'Play audio' : 'Pause audio');
-        btnP2.setAttribute('aria-pressed', String(!paused));
       }
 
-      function hideAllControls() {
-        hide(playCtaP1);
-        hide(btnP1);
-        hide(btnP2);
-        hide(tellBtnP2);
-        hide(closeBtn);
-      }
-
-      // ===== Audio unlock overlay (tap once to allow unmuted playback on iOS)
+      // AUDIO UNLOCK
       audioOverlay.addEventListener('click', () => {
-        // Unmute and "prime" both media (without actually playing)
         video.muted = false;
         voice.muted = false;
 
-        const primeVideo = video.play().then(() => video.pause()).catch(() => {});
-        const primeAudio = voice.play().then(() => voice.pause()).catch(() => {});
+        video.play().then(() => video.pause());
+        voice.play().then(() => voice.pause());
 
-        Promise.allSettled([primeVideo, primeAudio]).finally(() => {
-          audioOverlay.style.display = 'none';
-        });
+        audioOverlay.style.display = 'none';
       });
 
-      // ===================== Poster 1 (Video) =====================
+      // POSTER 1
       targetP1.addEventListener('targetFound', () => {
-        // Ensure Poster 2 audio is stopped if switching quickly
+        active = 'p1';
         voice.pause();
         voice.currentTime = 0;
 
-        activePoster = 'p1';
-        videoEntity.object3D.visible = true;
+        arVideo.object3D.visible = true;
 
-        // Do NOT auto-play. Show "Play video" pill first.
-        show(playCtaP1);
-        hide(btnP1);
-
+        show(playCTA);
+        hide(playBtnP1);
         show(closeBtn);
-        hide(btnP2);
-        hide(tellBtnP2);
+
+        hide(tellCTA);
+        hide(playBtnP2);
       });
 
       targetP1.addEventListener('targetLost', () => {
         video.pause();
-        updateBtnP1();
-        videoEntity.object3D.visible = false;
+        arVideo.object3D.visible = false;
 
-        if (activePoster === 'p1') {
-          hide(playCtaP1);
-          hide(btnP1);
-          hide(closeBtn);
-          activePoster = null;
-        }
+        hide(playCTA);
+        hide(playBtnP1);
+        hide(closeBtn);
+
+        active = null;
       });
 
-      // P1: Play video CTA → start playback and swap to play/pause
-      playCtaP1.addEventListener('click', () => {
-        video.play().then(() => {
-          hide(playCtaP1);
-          show(btnP1);
-          updateBtnP1();
-        }).catch(() => {
-          // If blocked, keep CTA visible
-        });
+      playCTA.addEventListener('click', () => {
+        video.play();
+        hide(playCTA);
+        show(playBtnP1);
+        updateP1();
       });
 
-      // P1: video play/pause
-      btnP1.addEventListener('click', () => {
-        if (video.paused) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
-        updateBtnP1();
+      playBtnP1.addEventListener('click', () => {
+        if (video.paused) video.play(); else video.pause();
+        updateP1();
       });
 
-      // ===================== Poster 2 (Model + Voiceover) =====================
+      // POSTER 2
       targetP2.addEventListener('targetFound', () => {
-        // Ensure Poster 1 video is stopped if switching quickly
+        active = 'p2';
         video.pause();
 
-        activePoster = 'p2';
-        modelEntity.setAttribute('visible', true);
+        model.setAttribute('visible', true);
 
-        // No auto audio. Show "Tell me more" pill. Hide P2 play/pause until user opts in.
-        show(tellBtnP2);
-        hide(btnP2);
-
+        show(tellCTA);
+        hide(playBtnP2);
         show(closeBtn);
-        hide(playCtaP1);
-        hide(btnP1);
+
+        hide(playCTA);
+        hide(playBtnP1);
       });
 
       targetP2.addEventListener('targetLost', () => {
         voice.pause();
         voice.currentTime = 0;
-        updateBtnP2();
 
-        modelEntity.setAttribute('visible', false);
+        model.setAttribute('visible', false);
 
-        if (activePoster === 'p2') {
-          hide(btnP2);
-          hide(tellBtnP2);
-          hide(closeBtn);
-          activePoster = null;
-        }
+        hide(tellCTA);
+        hide(playBtnP2);
+        hide(closeBtn);
+
+        active = null;
       });
 
-      // P2: Tell me more → start audio, swap to play/pause
-      tellBtnP2.addEventListener('click', () => {
-        voice.play().then(() => {
-          hide(tellBtnP2);
-          show(btnP2);
-          updateBtnP2();
-        }).catch(() => {
-          // If blocked, keep CTA visible
-        });
+      tellCTA.addEventListener('click', () => {
+        voice.play();
+        hide(tellCTA);
+        show(playBtnP2);
+        updateP2();
       });
 
-      // P2: voiceover play/pause
-      btnP2.addEventListener('click', () => {
-        if (voice.paused) {
-          voice.play().catch(() => {});
-        } else {
-          voice.pause();
-        }
-        updateBtnP2();
+      playBtnP2.addEventListener('click', () => {
+        if (voice.paused) voice.play(); else voice.pause();
+        updateP2();
       });
 
-      // Close button: stop/hide current poster content
+      // CLOSE
       closeBtn.addEventListener('click', () => {
-        if (activePoster === 'p1') {
+        if (active === 'p1') {
           video.pause();
           video.currentTime = 0;
-          videoEntity.object3D.visible = false;
-          updateBtnP1();
-          hide(playCtaP1);
-          hide(btnP1);
-        } else if (activePoster === 'p2') {
+          arVideo.object3D.visible = false;
+          hide(playCTA);
+          hide(playBtnP1);
+        }
+
+        if (active === 'p2') {
           voice.pause();
           voice.currentTime = 0;
-          modelEntity.setAttribute('visible', false);
-          updateBtnP2();
-          hide(btnP2);
-          hide(tellBtnP2);
+          model.setAttribute('visible', false);
+          hide(tellCTA);
+          hide(playBtnP2);
         }
+
         hide(closeBtn);
-        activePoster = null;
+        active = null;
       });
 
-      // Initialize states
-      updateBtnP1();
-      updateBtnP2();
-      hideAllControls();
+      hide(playCTA);
+      hide(playBtnP1);
+      hide(playBtnP2);
+      hide(tellCTA);
+      hide(closeBtn);
+
+      updateP1();
+      updateP2();
+
     };
   </script>
+
 </body>
 </html>
