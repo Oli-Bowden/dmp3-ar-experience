@@ -5,7 +5,7 @@
   <title>DMP3 AR Experience</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-  <!-- A-Frame + MindAR (ensure proper script tags) -->
+  <!-- A-Frame + MindAR (make sure the script tags are correct) -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
@@ -124,10 +124,14 @@
       </video>
 
       <!-- Poster 2 model -->
-      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb"></a-asset-item>
+      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb" crossorigin="anonymous"></a-asset-item>
 
       <!-- Poster 2 voiceover -->
-      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3" preload="auto"></audio>
+      <audio id="voiceAsset"
+             src="./assets/quantum-voiceover.mp3"
+             preload="auto"
+             crossorigin="anonymous">
+      </audio>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -151,7 +155,7 @@
         rotation="0 0 0"
         position="0 0 0"
         visible="false"
-        gesture-controls="minScale: 0.2; maxScale: 3;">
+        gesture-controls="minScale: 0.2; maxScale: 3; rotateEnabled: true; scaleEnabled: true; dragEnabled: false;">
       </a-entity>
     </a-entity>
   </a-scene>
@@ -197,7 +201,7 @@
 
   <script>
     window.onload = () => {
-      // Elements
+      // ===== Elements
       const video = document.querySelector('#videoAsset');
       const videoEntity = document.querySelector('#arVideo');
 
@@ -222,11 +226,11 @@
       // Which poster is active: 'p1' | 'p2' | null
       let activePoster = null;
 
-      // Scale factor for video plane (kept from your original)
+      // Scale factor for video plane (from your original)
       const scaleMultiplier = 0.65;
       videoEntity.object3D.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
 
-      // --- UI helpers ---
+      // ===== UI helpers
       const show = el => el.classList.remove('hidden');
       const hide = el => el.classList.add('hidden');
 
@@ -253,9 +257,9 @@
         hide(closeBtn);
       }
 
-      // --- Audio unlock overlay (tap once to allow sound on iOS) ---
+      // ===== Audio unlock overlay (tap once to allow unmuted playback on iOS)
       audioOverlay.addEventListener('click', () => {
-        // Unmute and prime both media with a user gesture
+        // Unmute and "prime" both media (without actually playing)
         video.muted = false;
         voice.muted = false;
 
@@ -269,9 +273,14 @@
 
       // ===================== Poster 1 (Video) =====================
       targetP1.addEventListener('targetFound', () => {
+        // Ensure Poster 2 audio is stopped if switching quickly
+        voice.pause();
+        voice.currentTime = 0;
+
         activePoster = 'p1';
         videoEntity.object3D.visible = true;
         video.play().catch(() => {}); // in case overlay not tapped yet
+
         updateBtnP1();
         show(btnP1);
         show(closeBtn);
@@ -283,6 +292,7 @@
         video.pause();
         updateBtnP1();
         videoEntity.object3D.visible = false;
+
         if (activePoster === 'p1') {
           hide(btnP1);
           hide(closeBtn);
@@ -301,6 +311,9 @@
 
       // ===================== Poster 2 (Model + Voiceover) =====================
       targetP2.addEventListener('targetFound', () => {
+        // Ensure Poster 1 video is stopped if switching quickly
+        video.pause();
+
         activePoster = 'p2';
         modelEntity.setAttribute('visible', true);
 
@@ -334,7 +347,7 @@
           show(btnP2);
           updateBtnP2();
         }).catch(() => {
-          // If blocked for any reason, keep Tell me more visible
+          // If blocked for any reason, keep "Tell me more" visible
         });
       });
 
@@ -376,3 +389,4 @@
   </script>
 </body>
 </html>
+``
