@@ -3,23 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <title>DMP3 AR Experience</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
 
-  <!-- A-Frame + MindAR (make sure the script tags are correct) -->
+  <!-- A-Frame + MindAR -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <!-- Gesture controls for Poster 2 (pinch to scale, two-finger rotate) -->
+  <!-- Gesture controls (pinch to scale, two-finger rotate) -->
   <script src="https://cdn.jsdelivr.net/npm/aframe-gesture-component@4.0.5/dist/aframe-gesture-component.min.js"></script>
 
   <style>
     body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
 
+    /* 🔑 Critical for multi-touch on the model (prevents browser pinch-zoom) */
+    canvas.a-canvas, .a-canvas { touch-action: none !important; }
+
     /* Blue circular button with white SVG icon (shared by P1/P2) */
     .btn {
       position: fixed;
       bottom: 20px;
-      left: 20px;               /* Consistent bottom-left placement */
+      left: 20px;
       width: 70px;
       height: 70px;
       background: #1e5df8;      /* your blue */
@@ -33,17 +36,18 @@
       box-shadow: 0 8px 24px rgba(30, 93, 248, 0.35);
       transition: transform 0.1s ease;
       touch-action: manipulation;
+      pointer-events: auto;
     }
     .btn:active { transform: scale(0.96); }
     .btn svg { width: 34px; height: 34px; fill: white; display: block; }
 
-    /* Tell me more pill (Poster 2) — sentence case */
-    #tellMeMoreBtn_p2 {
+    /* Pill CTA buttons (center-bottom), used by P1 & P2 */
+    .cta-pill {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
       bottom: 20px;
-      background: #1e5df8;      /* your blue */
+      background: #1e5df8;
       color: #fff;
       border-radius: 30px;
       padding: 14px 22px;
@@ -55,6 +59,7 @@
       box-shadow: 0 8px 24px rgba(30, 93, 248, 0.35);
       touch-action: manipulation;
       white-space: nowrap;
+      pointer-events: auto;
     }
 
     .hidden { display: none !important; }
@@ -76,6 +81,7 @@
       cursor: pointer;
       user-select: none;
       touch-action: manipulation;
+      pointer-events: auto;
     }
 
     /* Audio unlock overlay */
@@ -92,6 +98,7 @@
       z-index: 2000;
       cursor: pointer;
       padding: 24px;
+      pointer-events: auto;
     }
 
     @media (max-width: 420px) {
@@ -99,7 +106,7 @@
       .btn svg { width: 28px; height: 28px; }
       #closeBtn { width: 48px; height: 48px; font-size: 22px; line-height: 48px; }
       #audioOverlay { font-size: 18px; }
-      #tellMeMoreBtn_p2 { padding: 12px 18px; font-size: 15px; }
+      .cta-pill { padding: 12px 18px; font-size: 15px; }
     }
   </style>
 </head>
@@ -114,24 +121,19 @@
     gesture-detector
   >
     <a-assets>
-      <!-- Poster 1 video -->
+      <!-- Poster 1 video (with ID) -->
       <video id="videoAsset"
              src="./assets/video.mp4"
              preload="auto"
              loop
              crossorigin="anonymous"
-             playsinline>
-      </video>
+             playsinline></video>
 
-      <!-- Poster 2 model -->
-      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb" crossorigin="anonymous"></a-asset-item>
+      <!-- Poster 2 model (with ID) -->
+      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb"></a-asset-item>
 
-      <!-- Poster 2 voiceover -->
-      <audio id="voiceAsset"
-             src="./assets/quantum-voiceover.mp3"
-             preload="auto"
-             crossorigin="anonymous">
-      </audio>
+      <!-- Poster 2 voiceover (with ID) -->
+      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3" preload="auto" crossorigin="anonymous"></audio>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -151,7 +153,7 @@
     <a-entity mindar-image-target="targetIndex: 1" id="targetP2">
       <a-entity id="modelEntity"
         gltf-model="#modelAsset"
-        scale="0.5 0.5 0.5"
+        scale="0.7 0.7 0.7"
         rotation="0 0 0"
         position="0 0 0"
         visible="false"
@@ -161,6 +163,11 @@
   </a-scene>
 
   <!-- =================== Overlay UI =================== -->
+
+  <!-- Poster 1: CTA pill to start video -->
+  <div id="playVideoCTA_p1" class="cta-pill hidden" role="button" aria-label="Play video">
+    Play video
+  </div>
 
   <!-- Poster 1: Play/Pause video (blue circle) -->
   <div id="togglePlayPauseBtn_p1" class="btn hidden" role="button" aria-label="Play video" aria-pressed="false">
@@ -176,7 +183,7 @@
   </div>
 
   <!-- Poster 2: Tell me more (blue pill, center bottom) -->
-  <div id="tellMeMoreBtn_p2" class="hidden" role="button" aria-label="Tell me more">
+  <div id="tellMeMoreBtn_p2" class="cta-pill hidden" role="button" aria-label="Tell me more">
     Tell me more
   </div>
 
@@ -211,10 +218,13 @@
       const targetP1 = document.querySelector('#targetP1');
       const targetP2 = document.querySelector('#targetP2');
 
+      // Poster 1 controls
+      const playCtaP1 = document.getElementById('playVideoCTA_p1');
       const btnP1 = document.getElementById('togglePlayPauseBtn_p1');
       const iconPlayP1 = document.getElementById('iconPlay_p1');
       const iconPauseP1 = document.getElementById('iconPause_p1');
 
+      // Poster 2 controls
       const tellBtnP2 = document.getElementById('tellMeMoreBtn_p2');
       const btnP2 = document.getElementById('togglePlayPauseBtn_p2');
       const iconPlayP2 = document.getElementById('iconPlay_p2');
@@ -251,6 +261,7 @@
       }
 
       function hideAllControls() {
+        hide(playCtaP1);
         hide(btnP1);
         hide(btnP2);
         hide(tellBtnP2);
@@ -279,10 +290,11 @@
 
         activePoster = 'p1';
         videoEntity.object3D.visible = true;
-        video.play().catch(() => {}); // in case overlay not tapped yet
 
-        updateBtnP1();
-        show(btnP1);
+        // Do NOT auto-play. Show "Play video" pill first.
+        show(playCtaP1);
+        hide(btnP1);
+
         show(closeBtn);
         hide(btnP2);
         hide(tellBtnP2);
@@ -294,12 +306,25 @@
         videoEntity.object3D.visible = false;
 
         if (activePoster === 'p1') {
+          hide(playCtaP1);
           hide(btnP1);
           hide(closeBtn);
           activePoster = null;
         }
       });
 
+      // P1: Play video CTA → start playback and swap to play/pause
+      playCtaP1.addEventListener('click', () => {
+        video.play().then(() => {
+          hide(playCtaP1);
+          show(btnP1);
+          updateBtnP1();
+        }).catch(() => {
+          // If blocked, keep CTA visible
+        });
+      });
+
+      // P1: video play/pause
       btnP1.addEventListener('click', () => {
         if (video.paused) {
           video.play().catch(() => {});
@@ -322,6 +347,7 @@
         hide(btnP2);
 
         show(closeBtn);
+        hide(playCtaP1);
         hide(btnP1);
       });
 
@@ -340,18 +366,18 @@
         }
       });
 
-      // Tell me more → start audio, swap to play/pause
+      // P2: Tell me more → start audio, swap to play/pause
       tellBtnP2.addEventListener('click', () => {
         voice.play().then(() => {
           hide(tellBtnP2);
           show(btnP2);
           updateBtnP2();
         }).catch(() => {
-          // If blocked for any reason, keep "Tell me more" visible
+          // If blocked, keep CTA visible
         });
       });
 
-      // P2 play/pause (voiceover)
+      // P2: voiceover play/pause
       btnP2.addEventListener('click', () => {
         if (voice.paused) {
           voice.play().catch(() => {});
@@ -368,6 +394,7 @@
           video.currentTime = 0;
           videoEntity.object3D.visible = false;
           updateBtnP1();
+          hide(playCtaP1);
           hide(btnP1);
         } else if (activePoster === 'p2') {
           voice.pause();
@@ -389,4 +416,3 @@
   </script>
 </body>
 </html>
-``
