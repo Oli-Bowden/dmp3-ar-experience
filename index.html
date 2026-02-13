@@ -2,24 +2,24 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>DMP3 AR Experience</title>
+  <title>DMP3 Multi-Poster AR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
   <!-- A-Frame + MindAR -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <!-- Gesture controls for Poster 2 (pinch to scale, rotate with two fingers) -->
+  <!-- Gesture controls for Poster 2 (pinch to scale, two-finger rotate) -->
   <script src="https://cdn.jsdelivr.net/npm/aframe-gesture-component@4.0.5/dist/aframe-gesture-component.min.js"></script>
 
   <style>
     body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
 
-    /* Shared button style (blue circle with white SVG icon) */
+    /* Blue circular button with white SVG icon (shared by P1/P2) */
     .btn {
       position: fixed;
       bottom: 20px;
-      left: 20px;               /* Option A: keep bottom-left for consistency */
+      left: 20px;               /* Consistent bottom-left placement */
       width: 70px;
       height: 70px;
       background: #1e5df8;      /* your blue */
@@ -36,9 +36,30 @@
     }
     .btn:active { transform: scale(0.96); }
     .btn svg { width: 34px; height: 34px; fill: white; display: block; }
+
+    /* Tell Me More pill (Poster 2) */
+    #tellMeMoreBtn_p2 {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 20px;
+      background: #1e5df8;      /* your blue */
+      color: #fff;
+      border-radius: 30px;
+      padding: 14px 22px;
+      font-size: 16px;
+      font-weight: 600;
+      z-index: 1000;
+      cursor: pointer;
+      user-select: none;
+      box-shadow: 0 8px 24px rgba(30, 93, 248, 0.35);
+      touch-action: manipulation;
+      white-space: nowrap;
+    }
+
     .hidden { display: none !important; }
 
-    /* Close button (keep your existing style) */
+    /* Close button (keep your black transparent style) */
     #closeBtn {
       position: fixed;
       top: 20px;
@@ -78,6 +99,7 @@
       .btn svg { width: 28px; height: 28px; }
       #closeBtn { width: 48px; height: 48px; font-size: 22px; line-height: 48px; }
       #audioOverlay { font-size: 18px; }
+      #tellMeMoreBtn_p2 { padding: 12px 18px; font-size: 15px; }
     }
   </style>
 </head>
@@ -98,14 +120,16 @@
              preload="auto"
              loop
              crossorigin="anonymous"
-             playsinline>
-      </video>
+             playsinline></video>
 
       <!-- Poster 2 model -->
-      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb"></a-asset-item>
+      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb" crossorigin="anonymous"></a-asset-item>
 
       <!-- Poster 2 voiceover -->
-      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3" preload="auto" crossorigin="anonymous"></audio>
+      <audio id="voiceAsset"
+             src="./assets/quantum-voiceover.mp3"
+             preload="auto"
+             crossorigin="anonymous"></audio>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -117,8 +141,7 @@
                width="1.6"
                height="0.9"
                position="0 0 0"
-               visible="false">
-      </a-video>
+               visible="false"></a-video>
     </a-entity>
 
     <!-- Poster 2 target (index 1) -->
@@ -136,7 +159,7 @@
 
   <!-- =================== Overlay UI =================== -->
 
-  <!-- Poster 1: Play/Pause video -->
+  <!-- Poster 1: Play/Pause video (blue circle) -->
   <div id="togglePlayPauseBtn_p1" class="btn hidden" role="button" aria-label="Play video" aria-pressed="false">
     <!-- PLAY icon -->
     <svg id="iconPlay_p1" viewBox="0 0 100 100">
@@ -149,7 +172,12 @@
     </svg>
   </div>
 
-  <!-- Poster 2: Play/Pause voiceover -->
+  <!-- Poster 2: Tell Me More (blue pill) -->
+  <div id="tellMeMoreBtn_p2" class="hidden" role="button" aria-label="Tell me more">
+    Tell Me More
+  </div>
+
+  <!-- Poster 2: Play/Pause voiceover (blue circle) -->
   <div id="togglePlayPauseBtn_p2" class="btn hidden" role="button" aria-label="Play audio" aria-pressed="false">
     <!-- PLAY icon -->
     <svg id="iconPlay_p2" viewBox="0 0 100 100">
@@ -173,6 +201,7 @@
       // Elements
       const video = document.querySelector('#videoAsset');
       const videoEntity = document.querySelector('#arVideo');
+
       const voice = document.querySelector('#voiceAsset');
       const modelEntity = document.querySelector('#modelEntity');
 
@@ -183,6 +212,7 @@
       const iconPlayP1 = document.getElementById('iconPlay_p1');
       const iconPauseP1 = document.getElementById('iconPause_p1');
 
+      const tellBtnP2 = document.getElementById('tellMeMoreBtn_p2');
       const btnP2 = document.getElementById('togglePlayPauseBtn_p2');
       const iconPlayP2 = document.getElementById('iconPlay_p2');
       const iconPauseP2 = document.getElementById('iconPause_p2');
@@ -190,16 +220,16 @@
       const closeBtn = document.getElementById('closeBtn');
       const audioOverlay = document.getElementById('audioOverlay');
 
-      // Track which poster is active: 'p1' | 'p2' | null
+      // Which poster is active: 'p1' | 'p2' | null
       let activePoster = null;
 
-      // Video plane scale (kept from your original)
+      // Scale factor for video plane (kept from your original)
       const scaleMultiplier = 0.65;
       videoEntity.object3D.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
 
-      // --- UI helper functions ---
-      function show(el) { el.classList.remove('hidden'); }
-      function hide(el) { el.classList.add('hidden'); }
+      // --- UI helpers ---
+      const show = el => el.classList.remove('hidden');
+      const hide = el => el.classList.add('hidden');
 
       function updateBtnP1() {
         const paused = video.paused;
@@ -220,16 +250,16 @@
       function hideAllControls() {
         hide(btnP1);
         hide(btnP2);
+        hide(tellBtnP2);
         hide(closeBtn);
       }
 
-      // --- Audio unlock overlay: one tap enables both video+audio playback ---
+      // --- Audio unlock overlay (tap once to allow sound on iOS) ---
       audioOverlay.addEventListener('click', () => {
         // Unmute and prime both media with a user gesture
         video.muted = false;
         voice.muted = false;
 
-        // Try to "prime" both media elements on iOS by briefly playing/pausing
         const primeVideo = video.play().then(() => video.pause()).catch(() => {});
         const primeAudio = voice.play().then(() => voice.pause()).catch(() => {});
 
@@ -238,7 +268,7 @@
         });
       });
 
-      // --- Poster 1 events (Video) ---
+      // ===================== Poster 1 (Video) =====================
       targetP1.addEventListener('targetFound', () => {
         activePoster = 'p1';
         videoEntity.object3D.visible = true;
@@ -247,13 +277,13 @@
         show(btnP1);
         show(closeBtn);
         hide(btnP2);
+        hide(tellBtnP2);
       });
 
       targetP1.addEventListener('targetLost', () => {
         video.pause();
         updateBtnP1();
         videoEntity.object3D.visible = false;
-        // Only hide controls if p1 is still the active poster
         if (activePoster === 'p1') {
           hide(btnP1);
           hide(closeBtn);
@@ -261,33 +291,6 @@
         }
       });
 
-      // --- Poster 2 events (Model + Voiceover) ---
-      targetP2.addEventListener('targetFound', () => {
-        activePoster = 'p2';
-        modelEntity.setAttribute('visible', true);
-        voice.play().catch(() => {}); // in case overlay not tapped yet
-        updateBtnP2();
-        show(btnP2);
-        show(closeBtn);
-        hide(btnP1);
-      });
-
-      targetP2.addEventListener('targetLost', () => {
-        voice.pause();
-        voice.currentTime = 0;
-        updateBtnP2();
-        modelEntity.setAttribute('visible', false);
-        // Only hide controls if p2 is still the active poster
-        if (activePoster === 'p2') {
-          hide(btnP2);
-          hide(closeBtn);
-          activePoster = null;
-        }
-      });
-
-      // --- Button handlers ---
-
-      // Poster 1: video play/pause
       btnP1.addEventListener('click', () => {
         if (video.paused) {
           video.play().catch(() => {});
@@ -297,7 +300,47 @@
         updateBtnP1();
       });
 
-      // Poster 2: voiceover play/pause
+      // ===================== Poster 2 (Model + Voiceover) =====================
+      targetP2.addEventListener('targetFound', () => {
+        activePoster = 'p2';
+        modelEntity.setAttribute('visible', true);
+
+        // No auto audio. Show "Tell Me More" pill. Hide P2 play/pause until user opts in.
+        show(tellBtnP2);
+        hide(btnP2);
+
+        show(closeBtn);
+        hide(btnP1);
+      });
+
+      targetP2.addEventListener('targetLost', () => {
+        voice.pause();
+        voice.currentTime = 0;
+        updateBtnP2();
+
+        modelEntity.setAttribute('visible', false);
+
+        if (activePoster === 'p2') {
+          hide(btnP2);
+          hide(tellBtnP2);
+          hide(closeBtn);
+          activePoster = null;
+        }
+      });
+
+      // Tell Me More → start audio, swap to play/pause
+      tellBtnP2.addEventListener('click', () => {
+        // Start voiceover (this click is a valid user gesture)
+        voice.play().then(() => {
+          hide(tellBtnP2);
+          show(btnP2);
+          updateBtnP2();
+        }).catch(() => {
+          // If blocked for any reason, keep Tell Me More visible
+        });
+      });
+
+      // P2 play/pause (voiceover)
       btnP2.addEventListener('click', () => {
         if (voice.paused) {
           voice.play().catch(() => {});
@@ -321,12 +364,13 @@
           modelEntity.setAttribute('visible', false);
           updateBtnP2();
           hide(btnP2);
+          hide(tellBtnP2);
         }
         hide(closeBtn);
         activePoster = null;
       });
 
-      // Initialize button states
+      // Initialize states
       updateBtnP1();
       updateBtnP2();
       hideAllControls();
