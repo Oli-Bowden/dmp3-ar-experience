@@ -3,20 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <title>DMP3 AR Experience</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
+  <!-- A-Frame + MindAR -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <!-- Gesture controls for Poster 2 (pinch to scale, rotate with two fingers) -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-gesture-component@4.0.5/dist/aframe-gesture-component.min.js"></script>
 
   <style>
     body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
 
-    /* Updated BUTTON styling */
+    /* Shared button style (blue circle with white SVG icon) */
     .btn {
       position: fixed;
       bottom: 20px;
+      left: 20px;               /* Option A: keep bottom-left for consistency */
       width: 70px;
       height: 70px;
-      background: #1e5df8;       /* YOUR BLUE */
+      background: #1e5df8;      /* your blue */
       border-radius: 50%;
       z-index: 1000;
       user-select: none;
@@ -24,17 +30,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 8px 24px rgba(30, 93, 248, 0.35);
+      transition: transform 0.1s ease;
+      touch-action: manipulation;
     }
+    .btn:active { transform: scale(0.96); }
+    .btn svg { width: 34px; height: 34px; fill: white; display: block; }
+    .hidden { display: none !important; }
 
-    /* SVG icons inside buttons */
-    .btn svg {
-      width: 34px;
-      height: 34px;
-      fill: white; /* white play/pause icons */
-    }
-
-    #togglePlayPauseBtn { left: 20px; }
-
+    /* Close button (keep your existing style) */
     #closeBtn {
       position: fixed;
       top: 20px;
@@ -49,8 +53,11 @@
       border-radius: 50%;
       z-index: 1000;
       cursor: pointer;
+      user-select: none;
+      touch-action: manipulation;
     }
 
+    /* Audio unlock overlay */
     #audioOverlay {
       position: fixed;
       inset: 0;
@@ -63,125 +70,267 @@
       text-align: center;
       z-index: 2000;
       cursor: pointer;
+      padding: 24px;
+    }
+
+    @media (max-width: 420px) {
+      .btn { width: 62px; height: 62px; }
+      .btn svg { width: 28px; height: 28px; }
+      #closeBtn { width: 48px; height: 48px; font-size: 22px; line-height: 48px; }
+      #audioOverlay { font-size: 18px; }
     }
   </style>
 </head>
 
 <body>
 
-<a-scene
-  mindar-image="imageTargetSrc: targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;"
-  vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: true"
->
+  <!-- =================== AR Scene =================== -->
+  <a-scene
+    mindar-image="imageTargetSrc: ./assets/targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: true"
+    gesture-detector
+  >
+    <a-assets>
+      <!-- Poster 1 video -->
+      <video id="videoAsset"
+             src="./assets/video.mp4"
+             preload="auto"
+             loop
+             crossorigin="anonymous"
+             playsinline>
+      </video>
 
-  <a-assets>
-    <video id="videoAsset"
-           src="video.mp4"
-           preload="auto"
-           loop
-           crossorigin="anonymous"
-           playsinline>
-    </video>
-  </a-assets>
+      <!-- Poster 2 model -->
+      <a-asset-item id="modelAsset" src="./assets/quantum-model-shaded.glb"></a-asset-item>
 
-  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <!-- Poster 2 voiceover -->
+      <audio id="voiceAsset" src="./assets/quantum-voiceover.mp3" preload="auto" crossorigin="anonymous"></audio>
+    </a-assets>
 
-  <a-entity mindar-image-target="targetIndex: 0" id="target">
-    <a-video id="arVideo"
-             src="#videoAsset"
-             width="1.6"
-             height="0.9"
-             position="0 0 0"
-             visible="false">
-    </a-video>
-  </a-entity>
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-</a-scene>
+    <!-- Poster 1 target (index 0) -->
+    <a-entity mindar-image-target="targetIndex: 0" id="targetP1">
+      <a-video id="arVideo"
+               src="#videoAsset"
+               width="1.6"
+               height="0.9"
+               position="0 0 0"
+               visible="false">
+      </a-video>
+    </a-entity>
 
-<!-- PLAY / PAUSE BUTTON (SVG icons) -->
-<div id="togglePlayPauseBtn" class="btn">
-  <!-- Play icon -->
-  <svg id="iconPlay" viewBox="0 0 100 100">
-    <polygon points="30,20 80,50 30,80"></polygon>
-  </svg>
+    <!-- Poster 2 target (index 1) -->
+    <a-entity mindar-image-target="targetIndex: 1" id="targetP2">
+      <a-entity id="modelEntity"
+        gltf-model="#modelAsset"
+        scale="0.5 0.5 0.5"
+        rotation="0 0 0"
+        position="0 0 0"
+        visible="false"
+        gesture-controls="minScale: 0.2; maxScale: 3;">
+      </a-entity>
+    </a-entity>
+  </a-scene>
 
-  <!-- Pause icon -->
-  <svg id="iconPause" viewBox="0 0 100 100" style="display:none;">
-    <rect x="25" y="20" width="18" height="60"></rect>
-    <rect x="57" y="20" width="18" height="60"></rect>
-  </svg>
-</div>
+  <!-- =================== Overlay UI =================== -->
 
-<!-- CLOSE BUTTON -->
-<div id="closeBtn">✕</div>
+  <!-- Poster 1: Play/Pause video -->
+  <div id="togglePlayPauseBtn_p1" class="btn hidden" role="button" aria-label="Play video" aria-pressed="false">
+    <!-- PLAY icon -->
+    <svg id="iconPlay_p1" viewBox="0 0 100 100">
+      <polygon points="30,20 80,50 30,80"></polygon>
+    </svg>
+    <!-- PAUSE icon -->
+    <svg id="iconPause_p1" viewBox="0 0 100 100" style="display:none;">
+      <rect x="25" y="20" width="18" height="60"></rect>
+      <rect x="57" y="20" width="18" height="60"></rect>
+    </svg>
+  </div>
 
-<!-- AUDIO UNLOCK -->
-<div id="audioOverlay">Tap to Enable Sound</div>
+  <!-- Poster 2: Play/Pause voiceover -->
+  <div id="togglePlayPauseBtn_p2" class="btn hidden" role="button" aria-label="Play audio" aria-pressed="false">
+    <!-- PLAY icon -->
+    <svg id="iconPlay_p2" viewBox="0 0 100 100">
+      <polygon points="30,20 80,50 30,80"></polygon>
+    </svg>
+    <!-- PAUSE icon -->
+    <svg id="iconPause_p2" viewBox="0 0 100 100" style="display:none;">
+      <rect x="25" y="20" width="18" height="60"></rect>
+      <rect x="57" y="20" width="18" height="60"></rect>
+    </svg>
+  </div>
 
-<script>
-window.onload = () => {
+  <!-- Shared close button -->
+  <div id="closeBtn" class="hidden" aria-label="Close">✕</div>
 
-  const video = document.querySelector('#videoAsset');
-  const videoEntity = document.querySelector('#arVideo');
-  const target = document.querySelector('#target');
+  <!-- Audio unlock overlay -->
+  <div id="audioOverlay">Tap to Enable Sound</div>
 
-  const toggleBtn = document.getElementById('togglePlayPauseBtn');
-  const iconPlay = document.getElementById('iconPlay');
-  const iconPause = document.getElementById('iconPause');
-  const closeBtn = document.getElementById('closeBtn');
-  const audioOverlay = document.getElementById('audioOverlay');
+  <script>
+    window.onload = () => {
+      // Elements
+      const video = document.querySelector('#videoAsset');
+      const videoEntity = document.querySelector('#arVideo');
+      const voice = document.querySelector('#voiceAsset');
+      const modelEntity = document.querySelector('#modelEntity');
 
-  const scaleMultiplier = 0.65;
-  videoEntity.object3D.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
+      const targetP1 = document.querySelector('#targetP1');
+      const targetP2 = document.querySelector('#targetP2');
 
-  /* Swap between play and pause icons */
-  function updateToggleBtn() {
-    const isPaused = video.paused;
-    iconPlay.style.display = isPaused ? "block" : "none";
-    iconPause.style.display = isPaused ? "none" : "block";
-  }
+      const btnP1 = document.getElementById('togglePlayPauseBtn_p1');
+      const iconPlayP1 = document.getElementById('iconPlay_p1');
+      const iconPauseP1 = document.getElementById('iconPause_p1');
 
-  /* Unlock audio on user gesture */
-  audioOverlay.addEventListener('click', () => {
-    video.muted = false;
-    video.play().then(() => {
-      video.pause();
-      audioOverlay.style.display = 'none';
-    });
-  });
+      const btnP2 = document.getElementById('togglePlayPauseBtn_p2');
+      const iconPlayP2 = document.getElementById('iconPlay_p2');
+      const iconPauseP2 = document.getElementById('iconPause_p2');
 
-  /* Play/pause button */
-  toggleBtn.addEventListener('click', () => {
-    if (video.paused) video.play();
-    else video.pause();
-    updateToggleBtn();
-  });
+      const closeBtn = document.getElementById('closeBtn');
+      const audioOverlay = document.getElementById('audioOverlay');
 
-  /* Close button */
-  closeBtn.addEventListener('click', () => {
-    video.pause();
-    video.currentTime = 0;
-    videoEntity.object3D.visible = false;
-    updateToggleBtn();
-  });
+      // Track which poster is active: 'p1' | 'p2' | null
+      let activePoster = null;
 
-  /* AR target found */
-  target.addEventListener('targetFound', () => {
-    videoEntity.object3D.visible = true;
-    video.play();
-    updateToggleBtn();
-  });
+      // Video plane scale (kept from your original)
+      const scaleMultiplier = 0.65;
+      videoEntity.object3D.scale.set(scaleMultiplier, scaleMultiplier, scaleMultiplier);
 
-  /* AR target lost */
-  target.addEventListener('targetLost', () => {
-    video.pause();
-    updateToggleBtn();
-  });
+      // --- UI helper functions ---
+      function show(el) { el.classList.remove('hidden'); }
+      function hide(el) { el.classList.add('hidden'); }
 
-  updateToggleBtn();
-};
-</script>
+      function updateBtnP1() {
+        const paused = video.paused;
+        iconPlayP1.style.display = paused ? 'block' : 'none';
+        iconPauseP1.style.display = paused ? 'none' : 'block';
+        btnP1.setAttribute('aria-label', paused ? 'Play video' : 'Pause video');
+        btnP1.setAttribute('aria-pressed', String(!paused));
+      }
 
+      function updateBtnP2() {
+        const paused = voice.paused;
+        iconPlayP2.style.display = paused ? 'block' : 'none';
+        iconPauseP2.style.display = paused ? 'none' : 'block';
+        btnP2.setAttribute('aria-label', paused ? 'Play audio' : 'Pause audio');
+        btnP2.setAttribute('aria-pressed', String(!paused));
+      }
+
+      function hideAllControls() {
+        hide(btnP1);
+        hide(btnP2);
+        hide(closeBtn);
+      }
+
+      // --- Audio unlock overlay: one tap enables both video+audio playback ---
+      audioOverlay.addEventListener('click', () => {
+        // Unmute and prime both media with a user gesture
+        video.muted = false;
+        voice.muted = false;
+
+        // Try to "prime" both media elements on iOS by briefly playing/pausing
+        const primeVideo = video.play().then(() => video.pause()).catch(() => {});
+        const primeAudio = voice.play().then(() => voice.pause()).catch(() => {});
+
+        Promise.allSettled([primeVideo, primeAudio]).finally(() => {
+          audioOverlay.style.display = 'none';
+        });
+      });
+
+      // --- Poster 1 events (Video) ---
+      targetP1.addEventListener('targetFound', () => {
+        activePoster = 'p1';
+        videoEntity.object3D.visible = true;
+        video.play().catch(() => {}); // in case overlay not tapped yet
+        updateBtnP1();
+        show(btnP1);
+        show(closeBtn);
+        hide(btnP2);
+      });
+
+      targetP1.addEventListener('targetLost', () => {
+        video.pause();
+        updateBtnP1();
+        videoEntity.object3D.visible = false;
+        // Only hide controls if p1 is still the active poster
+        if (activePoster === 'p1') {
+          hide(btnP1);
+          hide(closeBtn);
+          activePoster = null;
+        }
+      });
+
+      // --- Poster 2 events (Model + Voiceover) ---
+      targetP2.addEventListener('targetFound', () => {
+        activePoster = 'p2';
+        modelEntity.setAttribute('visible', true);
+        voice.play().catch(() => {}); // in case overlay not tapped yet
+        updateBtnP2();
+        show(btnP2);
+        show(closeBtn);
+        hide(btnP1);
+      });
+
+      targetP2.addEventListener('targetLost', () => {
+        voice.pause();
+        voice.currentTime = 0;
+        updateBtnP2();
+        modelEntity.setAttribute('visible', false);
+        // Only hide controls if p2 is still the active poster
+        if (activePoster === 'p2') {
+          hide(btnP2);
+          hide(closeBtn);
+          activePoster = null;
+        }
+      });
+
+      // --- Button handlers ---
+
+      // Poster 1: video play/pause
+      btnP1.addEventListener('click', () => {
+        if (video.paused) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+        updateBtnP1();
+      });
+
+      // Poster 2: voiceover play/pause
+      btnP2.addEventListener('click', () => {
+        if (voice.paused) {
+          voice.play().catch(() => {});
+        } else {
+          voice.pause();
+        }
+        updateBtnP2();
+      });
+
+      // Close button: stop/hide current poster content
+      closeBtn.addEventListener('click', () => {
+        if (activePoster === 'p1') {
+          video.pause();
+          video.currentTime = 0;
+          videoEntity.object3D.visible = false;
+          updateBtnP1();
+          hide(btnP1);
+        } else if (activePoster === 'p2') {
+          voice.pause();
+          voice.currentTime = 0;
+          modelEntity.setAttribute('visible', false);
+          updateBtnP2();
+          hide(btnP2);
+        }
+        hide(closeBtn);
+        activePoster = null;
+      });
+
+      // Initialize button states
+      updateBtnP1();
+      updateBtnP2();
+      hideAllControls();
+    };
+  </script>
 </body>
 </html>
